@@ -17,6 +17,7 @@ export interface TransformOptions {
   resize?: 'cover' | 'contain' | 'fill'
   format?: 'origin' | 'avif'
   quality?: number
+  crop?: Array<number>
 }
 
 const {
@@ -115,6 +116,12 @@ export class ImageRenderer extends Renderer {
       segments.push(`format:${options.format}`)
     }
 
+    if (options.crop) {
+      const [x1, y1, x2, y2] = options.crop
+      segments.push(`crop:${x1+x2}:${y1+y2}`)
+      segments.push(`gravity:noea:${x1}:${y1}`)
+    }
+
     return segments
   }
 
@@ -169,6 +176,9 @@ export class ImageRenderer extends Renderer {
           break
         case 'quality':
           all.quality = parseInt(value, 10)
+          break
+        case 'crop':
+          all.crop = value.split(':').map((v : string) => parseFloat(v))
           break
       }
       return all
