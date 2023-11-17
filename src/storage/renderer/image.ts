@@ -17,8 +17,12 @@ export interface TransformOptions {
   resize?: 'cover' | 'contain' | 'fill'
   format?: 'origin' | 'avif'
   quality?: number
-  crop?: Array<number>
+  x1?: number
+  y1?: number
+  x2?: number
+  y2?: number
 }
+
 
 const {
   imgLimits,
@@ -45,11 +49,11 @@ const client = axios.create({
   httpAgent:
     imgProxyHttpMaxSockets > 0
       ? new Agent({
-          maxSockets: imgProxyHttpMaxSockets,
-          freeSocketTimeout: 2 * 1000,
-          keepAlive: true,
-          timeout: imgProxyHttpKeepAlive * 1000,
-        })
+        maxSockets: imgProxyHttpMaxSockets,
+        freeSocketTimeout: 2 * 1000,
+        keepAlive: true,
+        timeout: imgProxyHttpKeepAlive * 1000,
+      })
       : undefined,
 })
 
@@ -116,11 +120,24 @@ export class ImageRenderer extends Renderer {
       segments.push(`format:${options.format}`)
     }
 
-    if (options.crop) {
-      const [x1, y1, x2, y2] = options.crop
-      segments.push(`crop:${x1+x2}:${y1+y2}`)
-      segments.push(`gravity:noea:${x1}:${y1}`)
+    if (options.x1 !== undefined && options.y1 !== undefined && options.x2 !== undefined && options.y2 !== undefined) {
+      let { x1, y1, x2, y2 } = options;
+      x1 = parseFloat(String(x1));
+      y1 = parseFloat(String(y1));
+      x2 = parseFloat(String(x2));
+      y2 = parseFloat(String(y2));
+
+      let width = x2 - x1;
+      let height = y2 - y1;
+      let centerX = x1 + width / 2;
+      let centerY = y1 + height / 2;
+      
+      const crop = String(`crop:${width}:${height}`);
+      const gravity = String(`gravity:fp:${centerX}:${centerY}`);
+      segments.push(crop);
+      segments.push(gravity);
     }
+
 
     return segments
   }
@@ -177,9 +194,19 @@ export class ImageRenderer extends Renderer {
         case 'quality':
           all.quality = parseInt(value, 10)
           break
-        case 'crop':
-          all.crop = value.split(':').map((v : string) => parseFloat(v))
+        case 'x1':
+          all.x1 = parseFloat(value)
           break
+        case 'y1':
+          all.y1 = parseFloat(value)
+          break
+        case 'x2':
+          all.x2 = parseFloat(value)
+          break
+        case 'y2':
+          all.y2 = parseFloat(value)
+          break
+
       }
       return all
     }, {} as TransformOptions)
@@ -216,8 +243,8 @@ export class ImageRenderer extends Renderer {
         responseType: 'stream',
         headers: acceptHeader
           ? {
-              accept: acceptHeader,
-            }
+            accept: acceptHeader,
+          }
           : undefined,
       })
 
